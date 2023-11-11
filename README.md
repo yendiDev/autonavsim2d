@@ -2,7 +2,7 @@
 ## AutoNavSim2D
 This project provides a 2D simulation environment designed for the development and testing of path planning algorithms. It offers a flexible and interactive platform for researchers, developers, and hobbyists to experiment with various path planning strategies in a controlled virtual space.
 
-This is project being maintained by [Clinton Anani](https://www.linkedin.com/in/clinton-anani-56a125196/).
+This project is being maintained by [Clinton Anani](https://www.linkedin.com/in/clinton-anani-56a125196/).
 
 ---
 
@@ -24,7 +24,7 @@ This is project being maintained by [Clinton Anani](https://www.linkedin.com/in/
 Follow these steps to install and set up the simulation environment on your system:
 
 ```bash
-pip install autonavsim2d
+pip install autonavsim2D
 ```
 
 ### Usage
