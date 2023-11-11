@@ -13,7 +13,6 @@ This is project being maintained by [Clinton Anani](https://www.linkedin.com/in/
 - [Features](#features)
 - [Demo](#demo)
 - [Configuration](#configuration)
-- [Supported Algorithms](#supported-algorithms)
 - [Requirements](#requirements)
 - [Contributing](#contributing)
 - [License](#license)

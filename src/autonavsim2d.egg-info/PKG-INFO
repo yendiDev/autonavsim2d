@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: autonavsim2d
-Version: 0.1.6
+Version: 0.0.1
 Summary: This project provides a 2D simulation environment designed for the development and testing of path planning algorithms. It offers a flexible and interactive platform for researchers, developers, and hobbyists to experiment with various path planning strategies in a controlled virtual space.
 Home-page: https://github.com/yendiDev/autonavsim2d
 Author: Clinton Anani
@@ -48,7 +48,7 @@ pip install autonavsim2d
 To use the simulation environment for basic path planning and navigation with the default Djikstra algorithm path planner, create a `main.py` file, and import the package:
 
 ```python
-from autonavsim2d import AutoNavSim2D
+from autonavsim2d.autonavsim2d import AutoNavSim2D
 
 nav = AutoNavSim2D(
     custom_planner='default', 
@@ -81,7 +81,7 @@ nav = AutoNavSim2D(
 To use your custom path planner in AutoNavSim2D, write it in a function or class, and set it to the `custom_planner` parameter as seen below:
 
 ```python
-from autonavsim2d import AutoNavSim2D
+from autonavsim2d.autonavsim2d import AutoNavSim2D
 
 def my_planner(grid, matrix, start_loc, goal_loc):
     # your own custom path planning algorithm here
