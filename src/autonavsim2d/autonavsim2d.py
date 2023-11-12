@@ -2,7 +2,6 @@ import pygame
 from autonavsim2d.utils.utils import generate_path, generate_path_custom, generate_waypoints_v4, compare_waypoints, parse_arrow_angle, RED, BLACK, WHITE, GREEN, GREY, ORANGE, BLUE, RED_LIGHT, GREY_LIGHT
 from autonavsim2d.utils.robot_model import Robot
 from autonavsim2d.utils.logger import Logger
-import os
 import math
 import pkg_resources
 
@@ -533,14 +532,16 @@ class AutoNavSim2D:
                             else:
                                 logger.log("Path to Goal Generated")
                     
+
                     # navigate click
                     elif self.path_planning_window_select == True and navigate_button.x <= pos[0] <=navigate_button.x + navigate_button.width and navigate_button.y <= pos[1] <= navigate_button.y + navigate_button.height:
-                        logger.log("Waypoint Navigation Started")
-                        # generate wapoints
-                        robot_pose, waypoints = generate_waypoints_v4(grid, matrix, path, start_coord, end_coord, self.WIN_WIDTH, self.WIN_HEIGHT)
-                        
-                        last_waypoint = waypoints[-1]
-                        navigate = True
+                        if len(path) != 0:
+                            logger.log("Waypoint Navigation Started")
+                            # generate wapoints
+                            robot_pose, waypoints = generate_waypoints_v4(grid, matrix, path, start_coord, end_coord, self.WIN_WIDTH, self.WIN_HEIGHT)
+                            
+                            last_waypoint = waypoints[-1]
+                            navigate = True
                         
 
                     # clear map click

@@ -14,6 +14,7 @@ This project is being maintained by [Clinton Anani](https://www.linkedin.com/in/
 - [Demo](#demo)
 - [Configuration](#configuration)
 - [Requirements](#requirements)
+- [Custom Planner](#custom-planner)
 - [Contributing](#contributing)
 - [License](#license)
 - [Acknowledgments](#acknowledgments)
@@ -42,6 +43,21 @@ nav = AutoNavSim2D(
 nav.run()
 ```
 
+
+To use the GUI, there are three steps involved to set the robot up, set a goal location, and generate obstacles:
+
++ The first left-click is to place the robot in any location of your choosing. You can click `reset` to clear the map.
++ The second left-click sets your goal location. The cell you left-click on as your goal location will be green. To remove that location, right-click on the cell.
++ And lastly, to create obstacles (colored black), left-click on anywhere on the map and drag, after setting the robot and choosing your goal location. To remove an obstacle from the map, simply right-click on it.
+
+These steps must be followed one after the other in order to set the robot, set your goal location, and create obstacles. Check out the video below for a demo:
+
+https://github.com/yendiDev/autonavsim2d/assets/57093800/6d96191d-1a85-4c3a-a542-0d29c1232b96
+
+
+
+
+
 ### Configuration
 
 AutoNavSim2D can be customized in numerous ways. To launch the simulation environment with a starting page, set the `window` parameter to `default`:
@@ -62,25 +78,6 @@ nav = AutoNavSim2D(
 )
 ```
 
-To use your custom path planner in AutoNavSim2D, write it in a function or class, and set it to the `custom_planner` parameter as seen below:
-
-```python
-from autonavsim2d.autonavsim2d import AutoNavSim2D
-
-def my_planner(grid, matrix, start_loc, goal_loc):
-    # your own custom path planning algorithm here
-    path = []
-    runtime = ''
-    
-    return (path, runtime)
-
-nav = AutoNavSim2D(
-    custom_planner=my_planner, 
-    window='amr'
-)
-
-nav.run()
-```
 
 ### Features
 
@@ -104,7 +101,52 @@ See a video demo of the simulation environment in action [here](https://x.com/ox
 
 ### Requirements
 
-AutoNavSim2D is designed to be lightweight and memory efficient, so no dedicated hardware is required to run it. It is built on the pygame python package. 
+AutoNavSim2D is designed to be lightweight and memory efficient, so no dedicated hardware is required to run it. It is built on the pygame python package. To install pygame:
+
+```bash
+pip install pygame
+```
+
+### Custom Planner
+
+Writing your own path planning algorithm to be used in AutoNavSim2D is really simple. First, the map (1147x872) is represented as shown below:
+
+![Map](https://github.com/yendiDev/autonavsim2d/assets/57093800/6f71fa51-cfba-45e8-b325-c147ecb811e4)
+
+Next the 2D matrix representation of the map, where 1 represents a free path and 0 represents an obstable is shown below. You will receive this matrix when writing your custom planner: 
+
+```python
+[
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ...
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+]
+```
+
+To use your custom path planner in AutoNavSim2D, write it in a function or class, return the optimal path as well as the time taken to calculate the path, and set it to the `custom_planner` parameter as seen below:
+
+```python
+from autonavsim2d import AutoNavSim2D
+
+def my_planner(grid, matrix, start_loc, goal_loc):
+    # your own custom path planning algorithm here
+    path = []
+    runtime = ''
+    
+    return (path, runtime)
+
+nav = AutoNavSim2D(
+    custom_planner=my_planner, 
+    window='amr'
+)
+
+nav.run()
+```
 
 ### Contributing
 
