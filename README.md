@@ -37,6 +37,7 @@ from autonavsim2d.autonavsim2d import AutoNavSim2D
 
 nav = AutoNavSim2D(
     custom_planner='default', 
+    custom_motion_planner='default',
     window='amr'
 )
 
@@ -65,6 +66,7 @@ AutoNavSim2D can be customized in numerous ways. To launch the simulation enviro
 ```python
 nav = AutoNavSim2D(
     custom_planner='default', 
+    custom_motion_planner='default',
     window='default'
 )
 ```
@@ -74,6 +76,7 @@ To launch the simulation environment in map mode where you can begin visualizati
 ```python
 nav = AutoNavSim2D(
     custom_planner='default', 
+    custom_motion_planner='default',
     window='amr'
 )
 ```
@@ -96,7 +99,7 @@ Currently, AutoNavSim2D has the following features:
 See a video demo of the simulation environment in action [here](https://x.com/oxncgen/status/1667243532166242340?s=20) or check out the screenshots below:
 
 ![AutoNavSim2D](https://github.com/yendiDev/self-driving-car-ros2/assets/57093800/1adf5e0c-d9d3-4b57-9d51-cc000458c41a)
-![AutoNavSim2D](https://github.com/pytorch/pytorch/assets/57093800/f605eea7-4eff-4e54-8f66-e0a89cfe6844)
+![AutoNavSim2D](https://github.com/yendiDev/autonavsim2d/assets/57093800/abece93a-806f-4d32-9ae7-7b9185958b4f)
 
 
 ### Requirements
@@ -141,8 +144,56 @@ def my_planner(grid, matrix, start_loc, goal_loc):
     return (path, runtime)
 
 nav = AutoNavSim2D(
-    custom_planner=my_planner, 
+    custom_planner=my_planner,
+    custom_motion_planner='default',
     window='amr'
+)
+
+nav.run()
+```
+
+Also, to use your custom motion planner or waypoint generator in AutoNavSim2D, write it in a function or class, return the appropriate set of waypoints in a list, and set it to the `custom_motion_planner` parameter as seen below:
+
+```python
+from autonavsim2d import AutoNavSim2D
+from utils.pose import Pose, Point, Orientation
+from utils.pose_stamped import PoseStamped, Header
+
+def custom_motion_planner(grid, path, start, end):
+    # write your custom algorithm to generate waypoints here
+    robot_pose = None
+    waypoints = []
+
+   # 1. ROBOT POSE
+    # Robot pose must be a PoseStamp containing the robot's current location:
+    # start_cell = start[0]
+    # rect_x = start_cell.x
+    # rect_y = start_cell.y
+
+    # rect_center_x = rect_x + start_cell.width // 2
+    # rect_center_y = rect_y + start_cell.height // 2
+
+    # robot_position = Point(x=rect_center_x, y=rect_center_y, z=0)
+    # robot_orientation = Orientation(0, 0, 0, math.pi/2)
+    # robot_pose = Pose(position=robot_position, orientation=robot_orientation)
+
+    # 2. NAVIGATION WAYPOINTS
+    # Each element inside the waypoints list must return a PoseStamp:
+    # waypoint = PoseStamp(header=Header(...), pose=Pose(...))
+
+    # Where the elements of the PoseStamp include:
+    # Point(x, y, z=0)
+    # Orientation(x=0, y=0, z=0, w=theta)
+    # Pose(position=Point(...), orientation=Orientation(...))
+    # Header(stamp='0', frame_id='')
+
+    return(robot_pose, waypoints)
+	
+nav = AutoNavSim2D(
+    custom_planner='default', 
+    custom_motion_planner=custom_motion_planner,
+    window='amr'
+    
 )
 
 nav.run()

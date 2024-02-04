@@ -1,5 +1,5 @@
 import pygame
-from autonavsim2d.utils.utils import generate_path, generate_path_custom, generate_waypoints_v4, compare_waypoints, parse_arrow_angle, RED, BLACK, WHITE, GREEN, GREY, ORANGE, BLUE, RED_LIGHT, GREY_LIGHT
+from autonavsim2d.utils.utils import generate_path, generate_path_custom, generate_waypoints, compare_waypoints, parse_arrow_angle, RED, BLACK, WHITE, GREEN, GREY, ORANGE, BLUE, RED_LIGHT, GREY_LIGHT
 from autonavsim2d.utils.robot_model import Robot
 from autonavsim2d.utils.logger import Logger
 import math
@@ -15,12 +15,18 @@ class AutoNavSim2D:
     # dev custom params
     planner = None
     custom_planner = None
+    custom_motion_planner = None
+    dev_custom_motion_planner = None
     main_window_select = True
     path_planning_window_select = False
 
     # window params
     WIN_WIDTH, WIN_HEIGHT = 1147, 872
     WIN_WIDTH_FULL, WIN_HEIGHT_FULL = 1447, 872
+
+    # map params
+    cell_size = 4
+    cell_spacing = 5
 
     # active window
     ACTIVE_WINDOW = None
@@ -59,7 +65,7 @@ class AutoNavSim2D:
     LOGO_IMAGE = pygame.transform.scale(pygame.image.load(pkg_resources.resource_filename('autonavsim2d', 'utils/assets/logo.png')), (150, 150))
     BACKGROUND_IMAGE = pygame.transform.scale(pygame.image.load(pkg_resources.resource_filename('autonavsim2d', 'utils/assets/background2.jpg')), (WIN_WIDTH_FULL, WIN_HEIGHT_FULL))
 
-    def __init__(self, custom_planner=None, window=None):
+    def __init__(self, custom_planner=None, custom_motion_planner=None, window=None):
         # set window
         if window == 'default':
             self.ACTIVE_WINDOW = self.WIN
@@ -85,6 +91,15 @@ class AutoNavSim2D:
             # set dev custom planner
             self.custom_planner = custom_planner
 
+        # set motion planner
+        if custom_motion_planner == 'default':
+            # set motion planner to default
+            self.custom_motion_planner = 'default'
+        
+        else:
+            # set dev custom motion planner
+            self.dev_custom_motion_planner = custom_motion_planner
+
 
     def generate_grid(self):
         # empty grid
@@ -94,11 +109,11 @@ class AutoNavSim2D:
         x, y  = 0, 0
 
         # generate 2x2 matrix for rows and cols
-        for i in range(0, self.WIN_HEIGHT, 23):
+        for i in range(0, self.WIN_HEIGHT, self.cell_spacing):
             rows = []
             y = 0
-            for j in range (0, self.WIN_WIDTH, 23):
-                cell = [pygame.rect.Rect(j, i, 20, 20), GREY, (x, y)]
+            for j in range (0, self.WIN_WIDTH, self.cell_spacing):
+                cell = [pygame.rect.Rect(j, i, self.cell_size, self.cell_size), GREY, (x, y)]
                 rows.append(cell)
                 y += 1
 
@@ -538,7 +553,10 @@ class AutoNavSim2D:
                         if len(path) != 0:
                             logger.log("Waypoint Navigation Started")
                             # generate wapoints
-                            robot_pose, waypoints = generate_waypoints_v4(grid, matrix, path, start_coord, end_coord, self.WIN_WIDTH, self.WIN_HEIGHT)
+                            if self.custom_motion_planner == 'default':
+                                robot_pose, waypoints = generate_waypoints(grid, matrix, path, start_coord, end_coord, self.WIN_WIDTH, self.WIN_HEIGHT)
+                            else:
+                                robot_pose, waypoints = self.dev_custom_motion_planner(grid, path, start_coord, end_coord)
                             
                             last_waypoint = waypoints[-1]
                             navigate = True
@@ -613,8 +631,8 @@ class AutoNavSim2D:
                     pos = pygame.mouse.get_pos()
 
                     # get clicked cell
-                    clicked_row = pos[1] // 23
-                    clicked_col = pos[0] // 23
+                    clicked_row = pos[1] // self.cell_spacing
+                    clicked_col = pos[0] // self.cell_spacing
                     cell = grid[clicked_row][clicked_col]
 
                     # remove start coordinates
@@ -700,7 +718,7 @@ class AutoNavSim2D:
                             generated_path, runtime = generate_path_custom(self.custom_planner, grid, matrix_, robot_current_matrix_cell[2], end_coord[2])
                         path = generated_path
 
-                        robot_pose, waypoints = generate_waypoints_v4(grid, matrix_, path, robot_current_matrix_cell, end_coord, self.WIN_WIDTH, self.WIN_HEIGHT)
+                        robot_pose, waypoints = generate_waypoints(grid, matrix_, path, robot_current_matrix_cell, end_coord, self.WIN_WIDTH, self.WIN_HEIGHT)
                         time_taken = runtime
                         
                 else:
