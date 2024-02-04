@@ -555,14 +555,15 @@ class AutoNavSim2D:
                         
                         draw_frame = False
                         self.clear_map_path_all(path, grid, start_coord, end_coord, BLUE)
+                        self.run()
 
 
                     # grid click
                     else:
                         # get clicked cell
-                        if  self.path_planning_window_select == True:
-                            clicked_row = pos[1] // 23
-                            clicked_col = pos[0] // 23
+                        clicked_row = pos[1] // self.cell_spacing
+                        clicked_col = pos[0] // self.cell_spacing
+                        if  self.path_planning_window_select == True and (int(pos[0]) < self.WIN_WIDTH) and (int(pos[1]) < self.WIN_HEIGHT):
                             cell = grid[clicked_row][clicked_col]
 
                             # set start cell
