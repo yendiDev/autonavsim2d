@@ -172,7 +172,6 @@ class AutoNavSim2D:
 
         # generate 2x2 matrix for rows and cols
         for i in range(0, self.WIN_HEIGHT, self.cell_spacing):
-        for i in range(0, self.WIN_HEIGHT, self.cell_spacing):
             rows = []
             y = 0
             for j in range (0, self.WIN_WIDTH, self.cell_spacing):
