@@ -22,7 +22,7 @@ GREY_LIGHT = (220, 220, 220)
 GOLD = (255, 215, 0)
 
 def generate_path_custom(custom_planner, grid, matrix, start, end):
-     # params
+    # params
     GRID_LEN = len(grid)
     GRID_WIDTH = len(grid[0])
 
@@ -43,76 +43,6 @@ def generate_path_custom(custom_planner, grid, matrix, start, end):
                     (row + 1, col),
                     (row, col - 1),
                     (row, col + 1)
-                ]
-                valid_neighbors = []
-
-                # convert free space to obstacle by one cell
-                for neighbor in neighbors:
-                    n_row, n_col = neighbor
-
-                    # check valid neighbors
-                    if 0 <= n_row < GRID_LEN and 0 <= n_col < GRID_WIDTH:
-                        valid_neighbors.append(neighbor)
-
-                        if matrix[n_row][n_col] == 0:
-                            pass
-
-                        elif matrix[n_row][n_col] == 1:
-                            # convert free space to obstacle
-                            matrix[n_row][n_col] = 0
-                
-                # generate neighbors of valid neighbors of current node
-                for neighbor_val in valid_neighbors:
-                    row_val, col_val = neighbor_val
-
-                    valid_neighbor_neighbors = [
-                        (row_val - 1, col_val),
-                        (row_val + 1, col_val),
-                        (row_val, col_val - 1),
-                        (row_val, col_val + 1)
-                    ]
-
-                    # convert free space to obstacle by one cell
-                    for neighbor_ in valid_neighbor_neighbors:
-                        n_row, n_col = neighbor_
-
-                        # check valid neighbors
-                        if 0 <= n_row < GRID_LEN and 0 <= n_col < GRID_WIDTH:
-                            if matrix[n_row][n_col] == 0:
-                                pass
-
-                            elif matrix[n_row][n_col] == 1:
-                                # convert free space to obstacle
-                                matrix[n_row][n_col] = 0
-                                
-    shortest_path, runtime = custom_planner(grid, matrix, start, end)
-
-    # return shortest path
-    return (shortest_path, runtime)
-
-
-def generate_path(grid, matrix, start, end):
-    # params
-    GRID_LEN = len(grid)
-    GRID_WIDTH = len(grid[0])
-
-    # inflate map
-    for i in range(GRID_LEN):
-        for j in range(GRID_WIDTH):
-            # generate node neighbors
-            row, col = grid[i][j][2]
-            node_color = grid[i][j][1]
-            
-
-            if node_color == GREY or node_color == WHITE or node_color == RED or node_color == GREEN or node_color == BLUE or node_color == ORANGE:
-                pass
-
-            else:
-                neighbors = [
-                    (row - 10, col),
-                    (row + 10, col),
-                    (row, col - 10),
-                    (row, col + 10)
                 ]
 
                 angled_neighbors = [
@@ -153,8 +83,151 @@ def generate_path(grid, matrix, start, end):
 
                         elif matrix[n_row][n_col] == 1:
                             # convert free space to obstacle
+                            matrix[n_row][n_col] = 0               
+            
+                # generate neighbors of valid neighbors of current node
+                for neighbor_val in valid_neighbors:
+                    row_val, col_val = neighbor_val
+
+                    valid_neighbor_neighbors = [
+                        (row_val - 1, col_val),
+                        (row_val + 1, col_val),
+                        (row_val, col_val - 1),
+                        (row_val, col_val + 1)
+                    ]
+
+                    # convert free space to obstacle by one cell
+                    for neighbor_ in valid_neighbor_neighbors:
+                        n_row, n_col = neighbor_
+
+                        # check valid neighbors
+                        if 0 <= n_row < GRID_LEN and 0 <= n_col < GRID_WIDTH:
+                            if matrix[n_row][n_col] == 0:
+                                pass
+
+                            elif matrix[n_row][n_col] == 1:
+                                # convert free space to obstacle
+                                matrix[n_row][n_col] = 0
+
+                # generate angled neighbors of valid neighbors of current node
+                for angled_neighbor_val in valid_angled_neighbors:
+                    row_val, col_val = angled_neighbor_val
+
+                    valid_angled_neighbor_neighbors = [
+                        (row_val - 1, col_val),
+                        (row_val + 1, col_val),
+                        (row_val, col_val - 1),
+                        (row_val, col_val + 1)
+                    ]
+
+                    # convert free space to obstacle by one cell
+                    for neighbor_ in valid_angled_neighbor_neighbors:
+                        n_row, n_col = neighbor_
+
+                        # check valid neighbors
+                        if 0 <= n_row < GRID_LEN and 0 <= n_col < GRID_WIDTH:
+                            if matrix[n_row][n_col] == 0:
+                                pass
+
+                            elif matrix[n_row][n_col] == 1:
+                                # convert free space to obstacle
+                                matrix[n_row][n_col] = 0
+                       
+    shortest_path, runtime = custom_planner(grid, matrix, start, end)
+
+    # return shortest path
+    return (shortest_path, runtime)
+
+
+def generate_path(grid, matrix, start, end):
+    # params
+    GRID_LEN = len(grid)
+    GRID_WIDTH = len(grid[0])
+
+    # inflate map
+    for i in range(GRID_LEN):
+        for j in range(GRID_WIDTH):
+            # generate node neighbors
+            row, col = grid[i][j][2]
+            node_color = grid[i][j][1]
+            
+
+            if node_color == GREY or node_color == WHITE or node_color == RED or node_color == GREEN or node_color == BLUE or node_color == ORANGE:
+                pass
+
+            else:
+                neighbors = [
+                    (row - 10, col),
+                    (row + 10, col),
+                    (row, col - 10),
+                    (row, col + 10)
+                ]
+
+                angled_neighbors = [
+                    (row - 10, col - 10),
+                    (row - 10, col + 10),
+                    (row + 10, col - 10),
+                    (row + 10, col + 10)
+                ]
+
+
+                angled_neighbors = [
+                    (row - 10, col - 10),
+                    (row - 10, col + 10),
+                    (row + 10, col - 10),
+                    (row + 10, col + 10)
+                ]
+
+                valid_neighbors = []
+                valid_angled_neighbors = []
+                valid_angled_neighbors = []
+
+                # convert adjacent neighbors to obstacles by 10 cells
+                # convert adjacent neighbors to obstacles by 10 cells
+                for neighbor in neighbors:
+                    n_row, n_col = neighbor
+
+                    # check valid neighbors
+                    if 0 <= n_row < GRID_LEN and 0 <= n_col < GRID_WIDTH:
+                        valid_neighbors.append(neighbor)
+
+                        if matrix[n_row][n_col] == 0:
+                            pass
+
+                        elif matrix[n_row][n_col] == 1:
+                            # convert free space to obstacle
                             matrix[n_row][n_col] = 0
                 
+                # convert angled neighbors to obstacles by 10 cells
+                for angled_neighbor in angled_neighbors:
+                    n_row, n_col = angled_neighbor
+
+                    # check valid neighbors
+                    if 0 <= n_row < GRID_LEN and 0 <= n_col < GRID_WIDTH:
+                        valid_angled_neighbors.append(angled_neighbor)
+
+                        if matrix[n_row][n_col] == 0:
+                            pass
+
+                        elif matrix[n_row][n_col] == 1:
+                            # convert free space to obstacle
+                            matrix[n_row][n_col] = 0
+                
+                # convert angled neighbors to obstacles by 10 cells
+                for angled_neighbor in angled_neighbors:
+                    n_row, n_col = angled_neighbor
+
+                    # check valid neighbors
+                    if 0 <= n_row < GRID_LEN and 0 <= n_col < GRID_WIDTH:
+                        valid_angled_neighbors.append(angled_neighbor)
+
+                        if matrix[n_row][n_col] == 0:
+                            pass
+
+                        elif matrix[n_row][n_col] == 1:
+                            # convert free space to obstacle
+                            matrix[n_row][n_col] = 0               
+            
                 # generate neighbors of valid neighbors of current node
                 for neighbor_val in valid_neighbors:
                     row_val, col_val = neighbor_val
@@ -211,7 +284,7 @@ def generate_path(grid, matrix, start, end):
     return (shortest_path, runtime)
 
 
-def generate_waypoints_v4(grid, matrix, path, start, end, WIN_WIDTH, WIN_HEIGHT):
+def generate_waypoints(grid, matrix, path, start, end, WIN_WIDTH, WIN_HEIGHT):
 
     # generated posestamps
     waypoints = [None for _ in range(len(path) - 1)]
@@ -374,7 +447,7 @@ def parse_arrow_angle(angle):
     return true_angle
 
 
-def dijkstra_v2(grid, matrix, start, end):
+def dijkstra(grid, matrix, start, end):
     # start timer
     start_time = time.time()
     
