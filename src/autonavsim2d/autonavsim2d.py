@@ -1,9 +1,17 @@
 import pygame
-from autonavsim2d.utils.utils import generate_path, generate_path_custom, generate_waypoints_v4, compare_waypoints, parse_arrow_angle, RED, BLACK, WHITE, GREEN, GREY, ORANGE, BLUE, RED_LIGHT, GREY_LIGHT
-from autonavsim2d.utils.robot_model import Robot
-from autonavsim2d.utils.logger import Logger
+import pickle
 import math
 import pkg_resources
+import os
+import sys
+
+from autonavsim2d.utils.utils import sdv_track_1, generate_path, generate_path_custom, generate_waypoints_v4, compare_waypoints, parse_arrow_angle, RED, GOLD, BLACK, WHITE, GREEN, GREY, ORANGE, BLUE, RED_LIGHT, GREY_LIGHT
+from autonavsim2d.utils.robot_model import Robot
+from autonavsim2d.utils.input_field import InputBox
+from autonavsim2d.utils.logger import Logger
+from autonavsim2d.utils.pp_controller import PurePursuitController
+from autonavsim2d.utils.sdv_model import SDVModel
+
 
 
 
@@ -18,9 +26,19 @@ class AutoNavSim2D:
     main_window_select = True
     path_planning_window_select = False
 
+    main_window_select = True
+    path_planning_window_select = False
+    map_gen_window_select = False
+    map_available = False
+    map_val = None
+
     # window params
     WIN_WIDTH, WIN_HEIGHT = 1147, 872
     WIN_WIDTH_FULL, WIN_HEIGHT_FULL = 1447, 872
+
+    # map params
+    cell_size = 4
+    cell_spacing = 5
 
     # active window
     ACTIVE_WINDOW = None
@@ -31,6 +49,9 @@ class AutoNavSim2D:
     # path planning window
     WIN_PATH_PLANNING = pygame.display.set_mode((WIN_WIDTH_FULL, WIN_HEIGHT_FULL))
 
+    # map generation window
+    WIN_MAP_GENERATION = pygame.display.set_mode((WIN_WIDTH_FULL, WIN_HEIGHT_FULL))
+
     # set window name
     pygame.display.set_caption("AutoNavSim")
 
@@ -39,6 +60,8 @@ class AutoNavSim2D:
     NAVIGATE_FONT = pygame.font.SysFont('comicsans', 30)
     RESET_FONT = pygame.font.SysFont('comicsans', 30)
     ALGORITHM_NAME_FONT = pygame.font.SysFont('comicsans', 30)
+
+    INFO_FONT = pygame.font.SysFont('comicsans', 17)
     TIME_TAKEN_FONT = pygame.font.SysFont('comicsans', 25)
     METRICS_FONT = pygame.font.SysFont('comicsans', 25)
     WAYPOINTS_FONT = pygame.font.SysFont('comicsans', 25)
@@ -51,7 +74,6 @@ class AutoNavSim2D:
 
     # images
     HEADING_IMAGE = pygame.transform.scale(pygame.image.load(pkg_resources.resource_filename('autonavsim2d', 'utils/assets/dashboard_heading.png')), (100, 100))
-    # HEADING_IMAGE = pygame.transform.scale(pygame.image.load('src/autonavsim2d/assets/dashboard_heading.png'), (100, 100))
 
     ARROW_IMAGE = pygame.transform.scale(pygame.image.load(pkg_resources.resource_filename('autonavsim2d', 'utils/assets/heading_arrow.png')), (20, 50))
 
@@ -59,17 +81,25 @@ class AutoNavSim2D:
     LOGO_IMAGE = pygame.transform.scale(pygame.image.load(pkg_resources.resource_filename('autonavsim2d', 'utils/assets/logo.png')), (150, 150))
     BACKGROUND_IMAGE = pygame.transform.scale(pygame.image.load(pkg_resources.resource_filename('autonavsim2d', 'utils/assets/background2.jpg')), (WIN_WIDTH_FULL, WIN_HEIGHT_FULL))
 
-    def __init__(self, custom_planner=None, window=None):
+    def __init__(self, custom_planner=None, custom_motion_planner=None, window=None, config={}):
         # set window
         if window == 'default':
             self.ACTIVE_WINDOW = self.WIN
             self.main_window_select = True
             self.path_planning_window_select = False
+            self.map_gen_window_select = False
 
         elif window == 'amr':
             self.ACTIVE_WINDOW = self.WIN_PATH_PLANNING
             self.main_window_select = False
             self.path_planning_window_select = True
+            self.map_gen_window_select = False
+
+        elif window == 'map_gen':
+            self.ACTIVE_WINDOW = self.WIN_MAP_GENERATION
+            self.main_window_select = False
+            self.path_planning_window_select = False
+            self.map_gen_window_select = True
         
         else:
             self.ACTIVE_WINDOW = self.WIN
@@ -77,13 +107,54 @@ class AutoNavSim2D:
             self.path_planning_window_select = False
 
         # set path planner
-        if custom_planner == 'default':
+        if window == 'amr' and custom_planner == 'default':
             # set planner to default
             self.planner = 'default'
 
-        else:
+        elif window == 'amr' and custom_planner != 'default':
             # set dev custom planner
             self.custom_planner = custom_planner
+        
+        # set motion planner
+        if window == 'amr' and  custom_motion_planner == 'default':
+            # set motion planner to default
+            self.custom_motion_planner = 'default'
+        
+        elif window == 'amr' and custom_motion_planner != 'default':
+            # set dev custom motion planner
+            self.dev_custom_motion_planner = custom_motion_planner
+        
+        # parameter customisation
+        if config == None:
+            pass
+        
+        else:
+            self.draw_frame = config['show_frame']
+            self.show_grid = config['show_grid']
+            self.map = config['map']
+
+            if self.map == 'default':
+                pass
+
+            elif self.map != 'default' and window == 'amr':
+                # load pickle file
+                try:
+                    with open(self.map, 'rb') as file1:
+                        data = pickle.load(file1)
+                    
+                    # check if file is valid
+                    if len(data) > 1:
+                        self.map_available = True
+                        self.map_val = data
+                    else:
+                        print('data not available')
+
+                except FileNotFoundError:
+                    print("Error: File not found.")
+                    sys.exit()
+
+                except Exception as e:
+                    print(f"Error loading file: {e}")
 
 
     def generate_grid(self):
@@ -94,11 +165,17 @@ class AutoNavSim2D:
         x, y  = 0, 0
 
         # generate 2x2 matrix for rows and cols
-        for i in range(0, self.WIN_HEIGHT, 23):
+        for i in range(0, self.WIN_HEIGHT, self.cell_spacing):
             rows = []
             y = 0
-            for j in range (0, self.WIN_WIDTH, 23):
-                cell = [pygame.rect.Rect(j, i, 20, 20), GREY, (x, y)]
+            for j in range (0, self.WIN_WIDTH, self.cell_spacing):
+                cell_color = None
+                if self.show_grid:
+                    cell_color = GREY
+                else:
+                    cell_color = WHITE
+
+                cell = [pygame.rect.Rect(j, i, self.cell_size, self.cell_size), cell_color, (x, y)]
                 rows.append(cell)
                 y += 1
 
@@ -130,10 +207,16 @@ class AutoNavSim2D:
                 cell = grid[i][j]
 
                 # populate grid matrix
-                if cell[1] == GREY or cell[1] == RED or cell[1] == GREEN or cell[1] == BLUE or cell[1] == ORANGE:    # free space
-                    row_matrix.append(1)
-                else: 
-                    row_matrix.append(0)
+                if self.show_grid:
+                    if cell[1] == GREY or cell[1] == RED or cell[1] == GREEN or cell[1] == BLUE or cell[1] == ORANGE:    # free space
+                        row_matrix.append(1)
+                    else: 
+                        row_matrix.append(0)
+                else:
+                    if cell[1] == WHITE or cell[1] == RED or cell[1] == GREEN or cell[1] == BLUE or cell[1] == ORANGE:    # free space
+                        row_matrix.append(1)
+                    else: 
+                        row_matrix.append(0)
 
             # append row to matrix
             grid_matrix.append(row_matrix)
@@ -142,8 +225,6 @@ class AutoNavSim2D:
 
 
     def draw_grid(self, ACTIVE_WINDOW, grid):
-        # horizontal separator dist
-        separator_dist = 0
 
         # draw cells
         for i in range(len(grid)):
@@ -201,7 +282,10 @@ class AutoNavSim2D:
 
             else:
                 # set color to GREY
-                node[1] = GREY
+                if self.show_grid:
+                    node[1] = GREY
+                else:
+                    node[1] = WHITE
 
         pygame.display.update()
 
@@ -242,7 +326,7 @@ class AutoNavSim2D:
         heading_rect = pygame.rect.Rect(self.WIN_WIDTH+5, 140, 100, 100)
         ACTIVE_WINDOW.blit(self.HEADING_IMAGE, heading_rect)
 
-        # # heading arrow image
+        # heading arrow image
         if angle is not None: 
             ARROW_IMAGE_CPY = pygame.transform.rotate(self.ARROW_IMAGE, math.degrees(parse_arrow_angle(angle)))
             ARROW_IMAGE_CPY_RECT = ARROW_IMAGE_CPY.get_rect(center=heading_rect.center)
@@ -354,7 +438,10 @@ class AutoNavSim2D:
         else:
             self.draw_dashboard(ACTIVE_WINDOW, None, 0, 0, vl=0, vr=0, counter=0, waypoints_len=0, logger=logger)
         
-
+        # draw section separator
+        pygame.draw.rect(ACTIVE_WINDOW, GREY, pygame.rect.Rect(self.WIN_WIDTH+1, 0, 2, self.WIN_HEIGHT_FULL), border_radius=5)
+        
+            
         # update frame
         pygame.display.update()
 
@@ -399,6 +486,154 @@ class AutoNavSim2D:
         pygame.display.update()
 
 
+    def draw_any_button(self, ACTIVE_WINDOW, button, color, text, text_color, position):
+        pygame.draw.rect(ACTIVE_WINDOW, color, button, border_radius=5)
+
+        # add text to button
+        text = self.START_FONT.render(text, 1, text_color)
+        ACTIVE_WINDOW.blit(text, position)
+
+
+    def draw_map_generation_window(self, ACTIVE_WINDOW, grid, save_btn, save_btn_color, 
+                                   clear_map_btn, clear_map_btn_color, map_name_field):
+        # fill background with white color
+        ACTIVE_WINDOW.fill(WHITE)
+
+        self.draw_grid(ACTIVE_WINDOW, grid=grid)
+
+        # draw buttons
+        self.draw_any_button(ACTIVE_WINDOW, button=save_btn, color=save_btn_color, 
+                             text='Save', text_color=BLACK, position=(self.WIN_WIDTH+124, 405))
+        self.draw_any_button(ACTIVE_WINDOW, button=clear_map_btn, color=clear_map_btn_color, 
+                             text='Clear', text_color=WHITE, position=(self.WIN_WIDTH+125, 465))
+
+        # display texts
+        text = self.START_FONT.render('Custom Map Generator', 1, BLACK)
+        ACTIVE_WINDOW.blit(text, (self.WIN_WIDTH+35, 55)) 
+
+        # input text labels
+        text = self.START_FONT.render('Enter name of map', 1, BLACK)
+        ACTIVE_WINDOW.blit(text, (self.WIN_WIDTH+27, 130)) 
+               
+        # draw input text
+        map_name_field.update()
+        map_name_field.draw(ACTIVE_WINDOW)
+
+        # info messages
+        text = self.INFO_FONT.render('NOTE: Use underscore (_) in place of space', 1, RED)
+        ACTIVE_WINDOW.blit(text, (self.WIN_WIDTH+27, 210)) 
+
+        text = self.INFO_FONT.render('LOCATION: \'MAP\' folder will be created in root dir', 1, RED)
+        ACTIVE_WINDOW.blit(text, (self.WIN_WIDTH+27, 225)) 
+        
+        # draw section separator
+        pygame.draw.rect(ACTIVE_WINDOW, GREY, pygame.rect.Rect(self.WIN_WIDTH+1, 0, 2, self.WIN_HEIGHT_FULL), border_radius=5)
+        
+            
+        # update frame
+        pygame.display.update()
+
+
+    def sdv(ctrl=None, la_distance=None):
+        # set up the display window
+        SDV_WINDOW_WIDTH = 1200
+        SDV_WINDOW_HEIGHT = 1000
+
+        WINDOW = pygame.display.set_mode((SDV_WINDOW_WIDTH, SDV_WINDOW_HEIGHT))
+        pygame.display.set_caption('AutoNavSim2D - Bicycle Model Simulator')
+
+        # fonts
+        display_font = pygame.font.SysFont('comicsans', 30)
+
+        # define vehicle parameters
+        L = 0.02117  # length of the vehicle
+        W =  0.02117  # width of the vehicle
+
+        # main loop
+        clock = pygame.time.Clock()
+        FPS = 60
+        dt = 0
+        lasttime = pygame.time.get_ticks()
+
+        # look ahead distance
+        lookahead_distance = 0
+        if la_distance == None:
+            lookahead_distance = 2
+
+        else:
+            lookahead_distance = la_distance
+
+        # controller
+        controller = None
+        if ctrl == None:
+            controller = PurePursuitController(lookahead_distance)
+
+        else:
+            controller = ctrl
+
+        # robot's previous locations
+        prev_locs = []
+
+        # vehicle model
+        p1 = (700, 900)
+        car_start_pos = p1
+        
+        car = SDVModel(startpos=car_start_pos, car_img=pkg_resources.resource_filename('autonavsim2d', 'utils/assets/bicycle_model.png'), width=W, length=L)
+
+        while True:
+            clock.tick(FPS)        
+            
+            # handle events
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                
+                car.move(event, dt=dt, pp_controller=controller, path=sdv_track_1()[0])
+
+            # get change in time
+            dt = (pygame.time.get_ticks() - lasttime) / 1000
+            lasttime = pygame.time.get_ticks()
+
+            # track
+            curve_points1 = sdv_track_1()[1]
+            curve_points2 = sdv_track_1()[2]
+            curve_points3 = sdv_track_1()[3]
+            curve_points4 = sdv_track_1()[4]
+            curve_points5 = sdv_track_1()[5]
+            line_points1 = sdv_track_1()[6]
+
+            # draw path
+            pygame.draw.lines(WINDOW, RED, False, curve_points1, 2)
+            pygame.draw.lines(WINDOW, RED, False, curve_points2, 2)
+            pygame.draw.lines(WINDOW, RED, False, curve_points3, 2)
+            pygame.draw.lines(WINDOW, RED, False, curve_points4, 2)
+            pygame.draw.lines(WINDOW, RED, False, curve_points5, 2)
+            pygame.draw.circle(WINDOW, BLACK, p1, 5)
+
+            # lines
+            pygame.draw.lines(WINDOW, RED, False, line_points1, 2)
+
+            # draw main window
+            pygame.display.update()
+            WINDOW.fill(WHITE)
+            car.move(dt=dt, pp_controller=controller, path=sdv_track_1()[0])
+            car.draw(WINDOW, display_font=display_font, color=BLACK)
+            
+            # draw robot's trail
+            if len(prev_locs) < 50000:
+                current_loc = (car.x, car.y)
+                prev_locs.append(current_loc)
+                
+            else: # remove last element and append
+                prev_locs.pop()
+                current_loc = (car.x, car.y)
+                prev_locs.append(current_loc)
+            
+            for point in prev_locs:
+                pygame.draw.circle(WINDOW, GOLD, point, 2)
+            
+
     def run(self):
 
         # window selection params
@@ -417,15 +652,19 @@ class AutoNavSim2D:
         logger = Logger()
 
         # generate grid
-        grid = self.generate_grid()
+        if self.map_available:
+            grid = self.map_val
+        else:
+            grid = self.generate_grid()
+
         grid_cpy = grid
 
         # main window buttons
         diff_drive_btn = pygame.rect.Rect(self.WIN_WIDTH_FULL/2 - 300, 350, 600, 70)
         skid_steer_button = pygame.rect.Rect(self.WIN_WIDTH_FULL/2 - 300, 450, 600, 70)
-        self_driving_vehicle_button = pygame.rect.Rect(self.WIN_WIDTH_FULL/2 - 300, 550, 600, 70)
+        self_driving_vehicle_button = pygame.rect.Rect(self.WIN_WIDTH_FULL/2 - 300, 550, 600, 70)        
         
-        # path planning buttons
+        # buttons
         start_btn = pygame.rect.Rect(self.WIN_WIDTH + 85, 390, 130, 50)
         start_btn_color = GREEN
 
@@ -434,6 +673,16 @@ class AutoNavSim2D:
 
         reset_btn = pygame.rect.Rect(self.WIN_WIDTH + 85, 510, 130, 50)
         reset_btn_color = BLUE
+
+        # map generation buttons
+        save_btn = pygame.rect.Rect(self.WIN_WIDTH + 85, 390, 130, 50)
+        save_btn_color = GREEN
+
+        clear_map_btn = pygame.rect.Rect(self.WIN_WIDTH + 85, 450, 130, 50)
+        clear_map_btn_color = RED
+
+        # map generation input fields
+        map_name_field = InputBox(self.WIN_WIDTH+25, 155, 140, 32)
 
         # start and end locs
         start_coord = None
@@ -452,7 +701,7 @@ class AutoNavSim2D:
         robot = None
         robot_angle = math.pi/2
         robot_angle_ = []
-        draw_frame = False
+        draw_frame = self.draw_frame
 
         # navigation animation params
         navigate = False
@@ -473,6 +722,9 @@ class AutoNavSim2D:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     run = False
+                
+                # input text field event handler
+                map_name_field.handle_event(event)
                 
                 if pygame.mouse.get_pressed()[0]:   # left click
                     # get position of clicked
@@ -532,18 +784,19 @@ class AutoNavSim2D:
                             else:
                                 logger.log("Path to Goal Generated")
                     
-
                     # navigate click
                     elif self.path_planning_window_select == True and navigate_button.x <= pos[0] <=navigate_button.x + navigate_button.width and navigate_button.y <= pos[1] <= navigate_button.y + navigate_button.height:
                         if len(path) != 0:
                             logger.log("Waypoint Navigation Started")
                             # generate wapoints
-                            robot_pose, waypoints = generate_waypoints_v4(grid, matrix, path, start_coord, end_coord, self.WIN_WIDTH, self.WIN_HEIGHT)
+                            if self.custom_motion_planner == 'default':
+                                robot_pose, waypoints = generate_waypoints_v4(grid, matrix, path, start_coord, end_coord, self.WIN_WIDTH, self.WIN_HEIGHT)
+                            else:
+                                robot_pose, waypoints = self.dev_custom_motion_planner(grid, path, start_coord, end_coord)
                             
                             last_waypoint = waypoints[-1]
                             navigate = True
                         
-
                     # clear map click
                     elif self.path_planning_window_select == True and reset_btn.x <= pos[0] <=reset_btn.x + reset_btn.width and reset_btn.y <= pos[1] <= reset_btn.y + reset_btn.height:
                         logger.log("Simulation Restarted")
@@ -556,13 +809,48 @@ class AutoNavSim2D:
                         draw_frame = False
                         self.clear_map_path_all(path, grid, start_coord, end_coord, BLUE)
 
+                        self.run()
+
+                    # clear map generation window click
+                    elif self.map_gen_window_select == True and clear_map_btn.x <= pos[0] <=clear_map_btn.x + clear_map_btn.width and clear_map_btn.y <= pos[1] <= clear_map_btn.y + clear_map_btn.height:
+                        map_name_field.clear_field()
+                        self.run()
+                    
+                    # save map clicked
+                    if self.map_gen_window_select == True and save_btn.x <= pos[0] <=save_btn.x + save_btn.width and save_btn.y <= pos[1] <= save_btn.y + save_btn.height:
+                        folder_name = 'custom_maps'
+                        file_name = map_name_field.text
+
+                        root_directory = os.getcwd()
+                        folder_path = os.path.join(root_directory, folder_name)
+                        
+                        # Check if the folder already exists
+                        if not os.path.exists(folder_path):
+                            os.makedirs(folder_path)
+                            print(f"Folder '{folder_name}' created successfully.")
+
+                        else:
+                            print(f"Folder '{folder_name}' already exists.")
+
+                        # map created or available, perform save operation
+                        file_path = os.path.join(folder_path, file_name)  
+
+                        # Check if the file exists within the folder
+                        if os.path.exists(file_path):
+                            # file exists, raise warning
+                            pass
+
+                        else:
+                            # file does not exist, save
+                            with open(f'custom_maps/{file_name}.pkl', 'wb') as f:
+                                pickle.dump(grid, f)
 
                     # grid click
                     else:
                         # get clicked cell
-                        if  self.path_planning_window_select == True:
-                            clicked_row = pos[1] // 23
-                            clicked_col = pos[0] // 23
+                        clicked_row = pos[1] // self.cell_spacing
+                        clicked_col = pos[0] // self.cell_spacing
+                        if  self.path_planning_window_select == True and (int(pos[0]) < self.WIN_WIDTH) and (int(pos[1]) < self.WIN_HEIGHT) :
                             cell = grid[clicked_row][clicked_col]
 
                             # set start cell
@@ -581,7 +869,7 @@ class AutoNavSim2D:
                                     rect_center_x = rect_x + location_rect.width // 2
                                     rect_center_y = rect_y + location_rect.height // 2
                                     robot = Robot((rect_center_x, rect_center_y), pkg_resources.resource_filename('autonavsim2d', 'utils/assets/robot_circle_1.png'), wheels_dist)
-                                    draw_frame = True
+                                    draw_frame = self.draw_frame
                                     
                                     
                                 except IndexError:
@@ -608,12 +896,21 @@ class AutoNavSim2D:
                                 except IndexError:
                                     print('Out of bounce error')
 
+                        if self.map_gen_window_select and (int(pos[0]) < self.WIN_WIDTH) and (int(pos[1]) < self.WIN_HEIGHT) :
+                            cell = grid[clicked_row][clicked_col]
+                            try:
+                                cell[1] = BLACK
+                                grid_cpy[clicked_row][clicked_col][1] = BLACK
+                                    
+                            except IndexError:
+                                print('Out of bounce error')
+                
                 elif pygame.mouse.get_pressed()[2]:   # right click
                     pos = pygame.mouse.get_pos()
-
+        
                     # get clicked cell
-                    clicked_row = pos[1] // 23
-                    clicked_col = pos[0] // 23
+                    clicked_row = pos[1] // self.cell_spacing
+                    clicked_col = pos[0] // self.cell_spacing
                     cell = grid[clicked_row][clicked_col]
 
                     # remove start coordinates
@@ -623,10 +920,16 @@ class AutoNavSim2D:
                     # remove end coordinates
                     if self.path_planning_window_select == True and cell == end_coord:
                         end_coord = None
-                    
+
+                    # remove obstacle
                     if  self.path_planning_window_select == True:
-                        cell[1] = GREY
-                        grid_cpy[clicked_row][clicked_col][1] = GREY
+                        cell[1] = WHITE
+                        grid_cpy[clicked_row][clicked_col][1] = WHITE
+
+                    elif self.map_gen_window_select == True:
+                        cell[1] = WHITE
+                        grid_cpy[clicked_row][clicked_col][1] = WHITE
+
             
             # get change in time
             dt = (pygame.time.get_ticks() - lasttime) / 1000
@@ -790,15 +1093,17 @@ class AutoNavSim2D:
                 self.draw_path_planning_window(self.ACTIVE_WINDOW, grid_cpy, start_btn, start_btn_color, reset_btn, reset_btn_color, time_taken, navigate_button, navigate_btn_color, robot, dt, 
                             draw_frame, robot_angle_, counter=counter, waypoints_len=len(waypoints), logger=logger, spline_path=spline_path)
 
+            # draw map gen window
+            if self.map_gen_window_select:
+                self.draw_map_generation_window(self.ACTIVE_WINDOW, grid_cpy, save_btn, save_btn_color, 
+                                                clear_map_btn, clear_map_btn_color, map_name_field)
+
             # draw path if generated
             if len(path) != 0 and draw_new_path == False:
                 # draw generated path
-                self.draw_path(path, grid_cpy, start_coord, end_coord, BLUE, draw_new_path)
+                self.draw_path(path, grid_cpy, start_coord, end_coord, ORANGE, draw_new_path)
             
             
 
             
         pygame.quit()
-
-
-
