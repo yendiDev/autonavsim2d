@@ -23,8 +23,6 @@ class AutoNavSim2D:
     # dev custom params
     planner = None
     custom_planner = None
-    custom_motion_planner = None
-    dev_custom_motion_planner = None
     main_window_select = True
     path_planning_window_select = False
 
@@ -37,10 +35,6 @@ class AutoNavSim2D:
     # window params
     WIN_WIDTH, WIN_HEIGHT = 1147, 872
     WIN_WIDTH_FULL, WIN_HEIGHT_FULL = 1447, 872
-
-    # map params
-    cell_size = 4
-    cell_spacing = 5
 
     # map params
     cell_size = 4
@@ -917,8 +911,6 @@ class AutoNavSim2D:
                     # get clicked cell
                     clicked_row = pos[1] // self.cell_spacing
                     clicked_col = pos[0] // self.cell_spacing
-                    clicked_row = pos[1] // self.cell_spacing
-                    clicked_col = pos[0] // self.cell_spacing
                     cell = grid[clicked_row][clicked_col]
 
                     # remove start coordinates
@@ -1010,7 +1002,7 @@ class AutoNavSim2D:
                             generated_path, runtime = generate_path_custom(self.custom_planner, grid, matrix_, robot_current_matrix_cell[2], end_coord[2])
                         path = generated_path
 
-                        robot_pose, waypoints = generate_waypoints(grid, matrix_, path, robot_current_matrix_cell, end_coord, self.WIN_WIDTH, self.WIN_HEIGHT)
+                        robot_pose, waypoints = generate_waypoints_v4(grid, matrix_, path, robot_current_matrix_cell, end_coord, self.WIN_WIDTH, self.WIN_HEIGHT)
                         time_taken = runtime
                         
                 else:
